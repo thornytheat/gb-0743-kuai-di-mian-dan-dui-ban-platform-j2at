@@ -5,6 +5,7 @@ from app.errors import DomainError
 
 FIELDS = {'barcode', 'route', 'recipient'}
 COLUMNS = {'label', 'parcel', 'at', 'format', 'device', 'dpi', 'rotation', 'origin', 'unit', 'fields'}
+OPTIONAL = {'replaces', 'roll'}
 
 
 def valid_code(value):
@@ -12,7 +13,7 @@ def valid_code(value):
 
 
 def normalize(data):
-    if not COLUMNS <= data.keys() or data.keys() - COLUMNS - {'replaces'}:
+    if not COLUMNS <= data.keys() or data.keys() - COLUMNS - OPTIONAL:
         raise DomainError('BAD_PRINT')
     if any(not valid_code(data[field]) for field in ('label', 'parcel', 'format', 'device')):
         raise DomainError('BAD_PRINT')
@@ -26,4 +27,7 @@ def normalize(data):
     replaces = data.get('replaces')
     if replaces is not None and not valid_code(replaces):
         raise DomainError('BAD_PRINT')
-    return dict(data, at=stamp(instant(data['at'])), replaces=replaces)
+    roll = data.get('roll')
+    if roll is not None and not valid_code(roll):
+        raise DomainError('BAD_PRINT')
+    return dict(data, at=stamp(instant(data['at'])), replaces=replaces, roll=roll)

@@ -25,10 +25,10 @@ def test_isolated_stock_is_not_voidable(batch):
     assert (row['line'],row['code'],row['data']['label']) == (3,'VOID_NOT_LIVE','L-005')
 
 
-def test_ticket_and_all_seven_entry_points(client, batch_id):
+def test_ticket_and_all_eight_entry_points(client, batch_id):
     html = client.get('/').get_data(as_text=True)
-    assert '面单坐标棋盘' in html and '登记作废与重打' in html
-    for key in ('intake','templates','coordinates','barcode','occlusion','reconcile','tickets'):
+    assert '面单坐标棋盘' in html and '登记作废与重打' in html and '换卷校准' in html
+    for key in ('intake', 'templates', 'coordinates', 'barcode', 'occlusion', 'rolls', 'reconcile', 'tickets'):
         response = client.get(f'/api/{key}?run={batch_id}')
         assert response.status_code == 200 and response.json['data'] and response.json['id'] == batch_id
 
@@ -94,7 +94,7 @@ def test_concurrent_repeat_creates_single_archive(app, batch_id):
     assert one['id'] == two['id'] and sorted([one['created'],two['created']]) == [False,True]
 
 
-def test_storage_failure_keeps_all_four_original_files_and_current_pointer(app, client, batch_id):
+def test_storage_failure_keeps_all_five_original_files_and_current_pointer(app, client, batch_id):
     db = app.extensions['batch_store']
     with db.transaction() as tx:
         tx.execute("CREATE TRIGGER reject_update BEFORE UPDATE ON current_batch BEGIN SELECT RAISE(ABORT,'test'); END")
@@ -102,5 +102,5 @@ def test_storage_failure_keeps_all_four_original_files_and_current_pointer(app, 
     assert (response.status_code,response.json['code']) == (503,'STORE_UNAVAILABLE')
     with db.transaction() as tx:
         assert tx.execute('SELECT count(*) FROM batch').fetchone() == (1,)
-        assert tx.execute('SELECT count(*) FROM source').fetchone() == (4,)
+        assert tx.execute('SELECT count(*) FROM source').fetchone() == (5,)
     assert db.active() == batch_id

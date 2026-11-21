@@ -8,6 +8,7 @@ from app.modules.coordinates.service import calibrate
 from app.modules.intake.service import receive
 from app.modules.occlusion.service import check
 from app.modules.reconcile.service import reconcile
+from app.modules.rolls.service import evaluate
 from app.modules.templates.service import resolve
 from .ledger import lifecycle
 
@@ -20,6 +21,7 @@ def run(sources):
     coordinates, physical = calibrate(prints, bound)
     barcode, parcels = compare(prints, sources['parcels'])
     occlusion = check(physical, bound)
+    rolls = evaluate(sources['rolls'], templates['versions'], prints)
     defects = defaultdict(list)
     for row in coordinates:
         if 'code' in row:
@@ -34,4 +36,4 @@ def run(sources):
         raise DomainError('ACCOUNT_MISMATCH', 409)
     return {'manifest': manifest(sources, round((perf_counter() - begin) * 1000, 3)), 'intake': intake,
             'templates': templates, 'coordinates': coordinates, 'barcode': barcode,
-            'occlusion': occlusion, 'reconcile': balance, 'tickets': tickets}
+            'occlusion': occlusion, 'rolls': rolls, 'reconcile': balance, 'tickets': tickets}

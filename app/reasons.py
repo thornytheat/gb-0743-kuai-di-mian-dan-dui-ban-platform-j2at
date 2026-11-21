@@ -16,4 +16,6 @@ LABELS = {
     'LABEL_EXISTS': '面单编号已使用', 'STALE_RUN': '批次已更新，请重新加载', 'RUN_NOT_FOUND': '批次不存在',
     'BAD_REQUEST': '请求字段无效', 'UPLOAD_REQUIRED': '请选择出单文件', 'REPLAY_DRIFT': '复算结果与留档不一致',
     'ACCOUNT_MISMATCH': '出单勾稽异常', 'STORE_UNAVAILABLE': '存储暂不可用，请重试',
+    'BAD_SHEET': '校准样张字段缺失或无效', 'SHEET_CONFLICT': '同号校准样张内容矛盾',
+    'MISSING_PROOF': '本卷缺少整张校准样张，不得放行', 'UNKNOWN_ROLL': '面单引用的纸卷没有校准归口',
 }

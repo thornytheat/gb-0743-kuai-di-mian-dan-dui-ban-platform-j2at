@@ -11,7 +11,8 @@ from .voids import normalize_void
 
 def sample_sources():
     return {key: (SAMPLES / file).read_bytes() for key, file in
-            [('prints', 'prints.jsonl'), ('templates', 'templates.jsonl'), ('parcels', 'parcels.json'), ('voids', 'voids.jsonl')]}
+            [('prints', 'prints.jsonl'), ('templates', 'templates.jsonl'), ('parcels', 'parcels.json'),
+             ('voids', 'voids.jsonl'), ('rolls', 'rolls.jsonl')]}
 
 
 def seed(store):

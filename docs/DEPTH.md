@@ -12,8 +12,9 @@
 | M3 坐标归一 | 核对设备坐标和纸面换算 | `GET /api/coordinates` | `app/modules/coordinates/calibration.py` `app/modules/coordinates/box.py` | `tests/test_coordinates.py` |
 | M4 条码字段对读 | 比对运单号、路由码、收件代号 | `GET /api/barcode` | `app/modules/barcode/service.py` | `tests/test_barcode.py` |
 | M5 边界遮挡 | 筛选静区、版位和相交面积 | `GET /api/occlusion` | `app/modules/occlusion/rules.py` `app/modules/occlusion/service.py` | `tests/test_occlusion.py` |
-| M6 出单勾稽 | 清点输入、结果与包裹可发资格 | `GET /api/reconcile` | `app/modules/reconcile/service.py` | `tests/test_reconcile.py` |
-| M7 重打工单 | 作废、重打、复算与回切旧批次 | `GET /api/tickets` `POST /api/tickets/void` `POST /api/tickets/reprint` `GET /api/runs/<run_id>/evidence.json` | `app/modules/tickets/ledger.py` `app/modules/tickets/service.py` `app/store.py` | `tests/test_tickets.py` |
+| M6 换卷校准 | 按纸卷归口查看整卷样张、继续/停卷结论与缺样张拦截 | `GET /api/rolls` | `app/modules/rolls/service.py` `app/modules/rolls/sheets.py` | `tests/test_rolls.py` |
+| M7 出单勾稽 | 清点输入、结果与包裹可发资格 | `GET /api/reconcile` | `app/modules/reconcile/service.py` | `tests/test_reconcile.py` |
+| M8 重打工单 | 作废、重打、复算与回切旧批次 | `GET /api/tickets` `POST /api/tickets/void` `POST /api/tickets/reprint` `GET /api/runs/<run_id>/evidence.json` | `app/modules/tickets/ledger.py` `app/modules/tickets/service.py` `app/store.py` | `tests/test_tickets.py` |
 
 ## 陷阱登记
 
@@ -32,9 +33,14 @@
 | TRAP-23 | `L-019`、`L-021` 卡在版本起止点 | 双绑定或不绑定 | 区间左闭右开 | `app/modules/templates/service.py` | `tests/test_templates.py::test_half_open_boundaries_choose_new_revision_then_fall_back` |
 | TRAP-25 | `templates.jsonl` 两条修订 3 重叠 | 选择任意一条 | 冲突版本隔离，剩余取最高修订号 | `app/modules/templates/versions.py` | `tests/test_templates.py::test_same_revision_overlap_is_quarantined_without_losing_older_versions` |
 | TRAP-26 | 旧批次页面继续登记作废 | 已发布批次被覆盖 | 事务内核对当前批次编号 | `app/store.py` | `tests/test_tickets.py::test_void_new_version_rejects_stale_write_and_restores_original` |
+| TRAP-27 | 夜班三卷热敏纸混用，旧卷偏移带到新卷 | 拿邻卷样张或跨卷平均值定版面 | 校准结论按 `roll` 归口，同卷面单只共用本卷整张样张，无本卷有效样张即拦截 | `app/modules/rolls/service.py` | `tests/test_rolls.py::test_each_roll_keeps_its_own_verdict_and_evidence` |
+| TRAP-28 | 同卷重复提交校准样张 | 重试生成第二份结论或覆盖旧版结论 | 每次尝试都留痕，结论只取本卷最新样张；同号矛盾整组隔离，重复原值不隔离 | `app/modules/rolls/sheets.py` | `tests/test_rolls.py::test_repeated_failed_attempts_keep_one_verdict_but_preserve_every_sheet` |
+| TRAP-29 | 面单引用无有效样张的纸卷 | 借用其他纸卷证据放行 | 归口缺失分别按 `MISSING_PROOF`（样张被隔离或未归口）与 `UNKNOWN_ROLL`（无此卷）拦截，闸门保持关闭 | `app/modules/rolls/service.py` | `tests/test_rolls.py::test_roll_with_only_conflicting_sheets_holds_its_labels_as_missing_proof` |
+| TRAP-30 | 模板或校准规则更新 | 旧判定继续生效 | 规则版本进入批次身份，重算产出新批次；旧批次结论与原样张留档可回切 | `app/config.py` `app/canonical.py` | `tests/test_rolls.py::test_template_change_recomputes_verdict_without_keeping_stale_decision` |
 
 ## 对账规则
 
 - 每条出单输入归入有效、撤销或隔离。空白、坏行、采信重复均计入隔离。
 - 包裹最多有一张有效面单；历史作废仍保留前后继和作废登记。作废登记另外勾稽，不计入出单数。
 - 面单物理检测与工单资格各保留自己的依据，几何有问题的回执不进入可发链。
+- 换卷校准与面单工单相互独立：纸卷闸门按本卷整张校准样张决定继续出单或停卷重校，样张矛盾隔离或未归口的面单按缺样张拦截；单卷面单自身的几何、条码缺陷仍由各阶段单独裁决。

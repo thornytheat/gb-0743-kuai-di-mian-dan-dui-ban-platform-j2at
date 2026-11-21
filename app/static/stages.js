@@ -47,6 +47,36 @@ export function occlusion(data, openProof) {
   table('occlusion-passed', ['面单','静区宽度 mm','模板源行'],data.filter(row => row.ok).map(row => [command(row.label, () => openProof(row.label)),row.quiet_mm,row.version_line]));
 }
 
+const rollDecision = {CONTINUE:'继续出单', STOP:'停卷重校'};
+
+export function rolls(data) {
+  summary([['纸卷归口',data.coverage.rolls_total,'卷'],['继续出单',data.coverage.rolls_continue,'卷','ok'],
+    ['停卷重校',data.coverage.rolls_stop,'卷','warn'],['放行面单',data.coverage.released,'张'],['缺样张拦截',data.coverage.missing_proof,'张','warn']]);
+  facts('roll-gate', [['归口纸卷', data.coverage.rolls_total],
+    ['放行 / 停卷面单', `${data.coverage.released} / ${data.coverage.held}`, data.coverage.held ? 'warn' : 'ok'],
+    ['缺样张面单', data.coverage.missing_proof, data.coverage.missing_proof ? 'warn' : 'ok'],
+    ['整线放行闸门', data.gate_ok ? '通过' : '拦截', data.gate_ok ? 'ok' : 'bad']]);
+  table('roll-table', ['纸卷','结论','拦截原因','样张尝试','通过次数','证据样张','证据源行','归卷面单'], data.rolls.map(row =>
+    [row.roll, element('span', rollDecision[row.decision], row.decision === 'CONTINUE' ? 'ok' : 'bad'),
+      row.code ? explanation(row.code) : '—', row.attempts, row.passed, row.evidence_sheet, row.evidence_line,
+      row.labels.join(' / ') || '—']), '没有纸卷校准归口');
+  const attempts = $('roll-attempt-filter').value === 'failed' ? data.attempts.filter(row => !row.ok) : data.attempts;
+  table('roll-attempts', ['样张','纸卷','校准时点','模板源行','判定','问题明细'], attempts.map(row => [
+    row.sheet, row.roll, clock(row.at), row.version_line ?? '—',
+    element('span', row.ok ? '通过' : '失败', row.ok ? 'ok' : 'bad'),
+    row.code ? explanation(row.code) : row.issues.map(item =>
+      `${explanation(item.code)}${item.side ? `（${field(item.side)}）` : ''} ${item.area_mm2} mm²`).join(' / ') || '—']),
+    '没有失败样张');
+  if ($('roll-excluded-filter').value === 'excluded') {
+    table('roll-excluded', ['源行','原因码','判定','纸卷','原始记录'], data.excluded.map(row =>
+      [row.line, row.code, explanation(row.code), row.roll ?? '—', row.raw]), '没有隔离样张');
+  } else {
+    const blocked = [...data.proofless, ...data.unknown_rolls, ...data.unassigned];
+    table('roll-excluded', ['源行','面单','纸卷','原因码','判定'], blocked.map(row =>
+      [row.line, row.label, row.roll ?? '未归口', row.code, explanation(row.code)]), '缺样张面单已清零');
+  }
+}
+
 export function reconcile(data) {
   summary([['出单总数',data.input_rows,'张'],['有效',data.valid,'张','ok'],['撤销',data.revoked,'张'],['隔离',data.isolated,'张','warn'],['勾稽差额',data.gap,'张']]);
   facts('balance-strip',[['包裹总数',data.parcels_total],['可发包裹',data.shippable,'ok'],['无可发单',data.unissued,'warn'],['多张可发',data.multiple_live.length],['勾稽',data.ok?'相符':'异常',data.ok?'ok':'bad']]);
